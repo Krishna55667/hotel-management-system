@@ -72,6 +72,9 @@ export async function createRoom(formData: FormData): Promise<ActionResult> {
     type: formData.get("type"),
     capacity: formData.get("capacity"),
     pricePerNight: formData.get("pricePerNight"),
+    dayPrice: formData.get("dayPrice") || undefined,
+    nightPrice: formData.get("nightPrice") || undefined,
+    wholeDayPrice: formData.get("wholeDayPrice") || undefined,
     description: formData.get("description"),
     floor: formData.get("floor"),
   };
@@ -89,6 +92,9 @@ export async function createRoom(formData: FormData): Promise<ActionResult> {
         type: validated.data.type,
         capacity: validated.data.capacity,
         pricePerNight: validated.data.pricePerNight,
+        dayPrice: validated.data.dayPrice || null,
+        nightPrice: validated.data.nightPrice || null,
+        wholeDayPrice: validated.data.wholeDayPrice || null,
         description: validated.data.description || null,
         floor: validated.data.floor || 1,
         amenities: [],
@@ -116,6 +122,9 @@ export async function updateRoom(id: string, formData: FormData): Promise<Action
         type: formData.get("type") as "STANDARD" | "DELUXE" | "SUITE",
         capacity: Number(formData.get("capacity")),
         pricePerNight: Number(formData.get("pricePerNight")),
+        dayPrice: formData.get("dayPrice") ? Number(formData.get("dayPrice")) : null,
+        nightPrice: formData.get("nightPrice") ? Number(formData.get("nightPrice")) : null,
+        wholeDayPrice: formData.get("wholeDayPrice") ? Number(formData.get("wholeDayPrice")) : null,
         description: formData.get("description") as string,
         status: formData.get("status") as "AVAILABLE" | "MAINTENANCE" | "CLEANING",
       },
@@ -141,5 +150,79 @@ export async function updateRoomStatus(id: string, status: string): Promise<Acti
     return { success: true, message: "Room status updated" };
   } catch {
     return { success: false, message: "Failed to update room status" };
+  }
+}
+
+export async function updateRoomName(id: string, newName: string): Promise<ActionResult> {
+  const session = await auth();
+  if (!session || !["MANAGER", "ADMIN"].includes(session.user.role)) {
+    return { success: false, message: "Unauthorized" };
+  }
+
+  try {
+    await db.room.update({
+      where: { id },
+      data: { name: newName },
+    });
+    return { success: true, message: "Room name updated" };
+  } catch {
+    return { success: false, message: "Failed to update room name" };
+  }
+}
+
+export async function updateRoomPricing(
+  id: string, 
+  pricing: { pricePerNight: number, dayPrice?: number, nightPrice?: number, wholeDayPrice?: number }
+): Promise<ActionResult> {
+  const session = await auth();
+  if (!session || !["MANAGER", "ADMIN"].includes(session.user.role)) {
+    return { success: false, message: "Unauthorized" };
+  }
+
+  if (pricing.pricePerNight < 0) {
+    return { success: false, message: "Price cannot be negative" };
+  }
+
+  try {
+    await db.room.update({
+      where: { id },
+      data: { 
+        pricePerNight: pricing.pricePerNight,
+        dayPrice: pricing.dayPrice || null,
+        nightPrice: pricing.nightPrice || null,
+        wholeDayPrice: pricing.wholeDayPrice || null,
+      },
+    });
+    return { success: true, message: "Room prices updated successfully" };
+  } catch {
+    return { success: false, message: "Failed to update room prices" };
+  }
+}
+
+export async function deleteRoom(roomId: string): Promise<ActionResult> {
+  const session = await auth();
+  if (!session || !["MANAGER", "ADMIN"].includes(session.user.role)) {
+    return { success: false, message: "Unauthorized" };
+  }
+
+  try {
+    // Get all bookings for this room to cascade-delete payments/receipts
+    const bookings = await db.booking.findMany({
+      where: { roomId },
+      select: { id: true },
+    });
+    const bookingIds = bookings.map((b) => b.id);
+
+    await db.$transaction([
+      db.receipt.deleteMany({ where: { bookingId: { in: bookingIds } } }),
+      db.payment.deleteMany({ where: { bookingId: { in: bookingIds } } }),
+      db.booking.deleteMany({ where: { roomId } }),
+      db.room.delete({ where: { id: roomId } }),
+    ]);
+
+    return { success: true, message: "Room deleted permanently" };
+  } catch (error) {
+    console.error("Delete room error:", error);
+    return { success: false, message: "Failed to delete room. It may still have active records." };
   }
 }

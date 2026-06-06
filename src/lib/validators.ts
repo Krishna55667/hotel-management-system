@@ -19,14 +19,17 @@ export const bookingSchema = z.object({
     message: "Check-in date must be today or later",
   }),
   checkOut: z.coerce.date(),
+  expectedCheckInTime: z.string().optional(),
+  expectedCheckOutTime: z.string().optional(),
+  bookingType: z.enum(["DAY", "NIGHT", "WHOLE_DAY"]).optional(),
   guests: z.coerce.number().min(1, "At least 1 guest required").max(10, "Maximum 10 guests"),
   specialRequests: z.string().optional(),
   name: z.string().min(2, "Name is required"),
   email: z.string().email("Valid email is required"),
   phone: z.string().min(10, "Valid phone number is required"),
   address: z.string().optional(),
-}).refine((data) => data.checkOut > data.checkIn, {
-  message: "Check-out must be after check-in",
+}).refine((data) => data.checkOut >= data.checkIn, {
+  message: "Check-out must be on or after check-in",
   path: ["checkOut"],
 });
 
@@ -43,6 +46,9 @@ export const roomSchema = z.object({
   type: z.enum(["STANDARD", "DELUXE", "SUITE"]),
   capacity: z.coerce.number().min(1).max(10),
   pricePerNight: z.coerce.number().min(0, "Price must be positive"),
+  dayPrice: z.coerce.number().min(0).optional(),
+  nightPrice: z.coerce.number().min(0).optional(),
+  wholeDayPrice: z.coerce.number().min(0).optional(),
   description: z.string().optional(),
   amenities: z.array(z.string()).optional(),
   floor: z.coerce.number().min(1).optional(),
@@ -67,7 +73,7 @@ export const staffSchema = z.object({
   name: z.string().min(2, "Name required"),
   email: z.string().email("Valid email required"),
   phone: z.string().optional(),
-  position: z.enum(["RECEPTIONIST", "HOUSEKEEPING", "KITCHEN_STAFF", "MANAGER", "SECURITY"]),
+  position: z.string().min(2, "Position is required"),
   salary: z.coerce.number().optional(),
   shift: z.enum(["MORNING", "AFTERNOON", "NIGHT"]),
 });

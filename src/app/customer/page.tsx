@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Printer, CalendarRange, Key, Compass } from "lucide-react";
 import Link from "next/link";
+import PaymentUploadModal from "@/components/public/payment-upload-modal";
 
 export const revalidate = 0;
 
@@ -115,6 +116,8 @@ export default async function CustomerDashboardPage() {
                             Print
                           </Button>
                         </a>
+                      ) : !b.payment ? (
+                        <PaymentUploadModal bookingId={b.id} totalAmount={b.totalAmount} />
                       ) : (
                         <span className="text-xs text-muted-foreground italic">Awaiting payment verification</span>
                       )}

@@ -26,11 +26,9 @@ export default async function CustomerLayout({
       {/* Sidebar */}
       <aside className="w-full md:w-64 bg-primary text-primary-foreground border-r border-primary/20 flex flex-col shrink-0">
         {/* Brand */}
-        <div className="h-16 flex items-center gap-2 px-6 border-b border-primary-foreground/10">
-          <div className="bg-secondary p-1.5 rounded-lg text-secondary-foreground">
-            <Leaf className="h-4 w-4" />
-          </div>
-          <span className="font-heading font-bold text-lg text-white tracking-tight">
+        <div className="h-16 flex items-center gap-2 px-6 border-b border-primary-foreground/10 bg-white">
+          <img src="/logo.png" alt="Sauraha Fish Village Logo" className="h-10 w-10 object-contain" />
+          <span className="font-heading font-bold text-lg text-primary tracking-tight">
             {APP_SHORT_NAME}
           </span>
         </div>

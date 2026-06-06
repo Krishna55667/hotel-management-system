@@ -45,14 +45,12 @@ export default async function DashboardLayout({
       {/* Sidebar */}
       <aside className="w-64 bg-sidebar-background text-sidebar-foreground border-r border-sidebar-border hidden md:flex flex-col shrink-0">
         {/* Brand */}
-        <div className="h-16 flex items-center gap-2 px-6 border-b border-sidebar-border">
-          <div className="bg-sidebar-primary p-1.5 rounded-lg text-sidebar-primary-foreground">
-            <Leaf className="h-4 w-4" />
-          </div>
-          <span className="font-heading font-bold text-lg text-white tracking-tight">
+        <Link href="/" className="h-16 flex items-center gap-2 px-6 border-b border-sidebar-border bg-white cursor-pointer hover:bg-neutral-50 transition-colors">
+          <img src="/logo.png" alt="Sauraha Fish Village Logo" className="h-10 w-10 object-contain" />
+          <span className="font-heading font-bold text-lg text-primary tracking-tight">
             {APP_SHORT_NAME}
           </span>
-        </div>
+        </Link>
 
         {/* User Info */}
         <div className="px-6 py-4 border-b border-sidebar-border space-y-1 bg-black/15">

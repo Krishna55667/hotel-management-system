@@ -89,11 +89,9 @@ export default function PaymentVerifier({ payments: initialPayments }: PaymentVe
                   <TableCell>
                     {p.screenshotUrl ? (
                       <Dialog>
-                        <DialogTrigger>
-                          <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-primary hover:bg-primary/5 hover:text-primary">
-                            <Eye className="h-4 w-4" />
-                            View Receipt
-                          </Button>
+                        <DialogTrigger render={<Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-primary hover:bg-primary/5 hover:text-primary" />}>
+                          <Eye className="h-4 w-4" />
+                          View Receipt
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-md">
                           <DialogHeader>
@@ -103,19 +101,37 @@ export default function PaymentVerifier({ payments: initialPayments }: PaymentVe
                             </DialogDescription>
                           </DialogHeader>
                           <div className="flex items-center justify-center p-2 border rounded-xl bg-muted/40">
-                            {/* Standard base64 image renderer */}
-                            {p.screenshotUrl.startsWith("data:") ? (
+                            {/* Robust image renderer handling prefix/URLs and click-to-expand */}
+                            <div className="flex flex-col gap-3 w-full items-center">
                               <img
-                                src={p.screenshotUrl}
+                                src={p.screenshotUrl.startsWith("data:") || p.screenshotUrl.startsWith("/") || p.screenshotUrl.startsWith("http") ? p.screenshotUrl : `data:image/png;base64,${p.screenshotUrl}`}
                                 alt="Payment Screenshot"
-                                className="max-h-96 object-contain rounded-lg"
+                                className="max-h-96 object-contain rounded-lg border cursor-zoom-in hover:opacity-90 transition-opacity"
+                                onClick={() => {
+                                  const src = p.screenshotUrl.startsWith("data:") || p.screenshotUrl.startsWith("/") || p.screenshotUrl.startsWith("http") ? p.screenshotUrl : `data:image/png;base64,${p.screenshotUrl}`;
+                                  const win = window.open();
+                                  if (win) {
+                                    win.document.write(`<html><body style="margin:0; background:#111; display:flex; justify-content:center; align-items:center; height:100vh;"><img src="${src}" style="max-width:100%; max-height:100%; object-fit:contain;" /></body></html>`);
+                                    win.document.close();
+                                  }
+                                }}
                               />
-                            ) : (
-                              <div className="h-64 flex flex-col items-center justify-center text-muted-foreground gap-2">
-                                <Sparkles className="h-10 w-10 text-primary" />
-                                <span className="text-xs font-semibold">No screenshot attachment</span>
-                              </div>
-                            )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={() => {
+                                  const src = p.screenshotUrl.startsWith("data:") || p.screenshotUrl.startsWith("/") || p.screenshotUrl.startsWith("http") ? p.screenshotUrl : `data:image/png;base64,${p.screenshotUrl}`;
+                                  const win = window.open();
+                                  if (win) {
+                                    win.document.write(`<html><body style="margin:0; background:#111; display:flex; justify-content:center; align-items:center; height:100vh;"><img src="${src}" style="max-width:100%; max-height:100%; object-fit:contain;" /></body></html>`);
+                                    win.document.close();
+                                  }
+                                }}
+                              >
+                                View Fullscreen / Open in New Tab
+                              </Button>
+                            </div>
                           </div>
                         </DialogContent>
                       </Dialog>

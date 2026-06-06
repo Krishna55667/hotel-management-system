@@ -76,3 +76,28 @@ export async function updateStaffStatus(staffId: string, status: string): Promis
     return { success: false, message: "Failed to update status" };
   }
 }
+
+export async function deleteStaff(staffId: string): Promise<ActionResult> {
+  const session = await auth();
+  if (!session || !["MANAGER", "ADMIN"].includes(session.user.role)) {
+    return { success: false, message: "Unauthorized" };
+  }
+
+  try {
+    const staff = await db.staff.findUnique({ where: { id: staffId } });
+    if (!staff) return { success: false, message: "Staff not found" };
+
+    // Delete staff record
+    await db.staff.delete({ where: { id: staffId } });
+    
+    // Also delete the associated user account to clean up access
+    if (staff.userId) {
+      await db.user.delete({ where: { id: staff.userId } });
+    }
+
+    return { success: true, message: "Staff member deleted permanently" };
+  } catch (error) {
+    console.error("Delete staff error:", error);
+    return { success: false, message: "Failed to delete staff member" };
+  }
+}

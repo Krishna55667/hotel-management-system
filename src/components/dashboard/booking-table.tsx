@@ -112,11 +112,21 @@ export default function BookingTable({ bookings: initialBookings }: BookingTable
                   </TableCell>
                   <TableCell>
                     <div className="text-xs">
-                      In: <span className="font-semibold">{new Date(b.checkIn).toLocaleDateString()}</span>
+                      Sched In: <span className="font-semibold">{new Date(b.checkIn).toLocaleDateString()} {b.expectedCheckInTime ? `at ${b.expectedCheckInTime}` : ''}</span>
                     </div>
-                    <div className="text-xs mt-0.5">
-                      Out: <span className="font-semibold">{new Date(b.checkOut).toLocaleDateString()}</span>
+                    {b.actualCheckIn && (
+                      <div className="text-[10px] text-emerald-600 mt-0.5">
+                        Actual In: {new Date(b.actualCheckIn).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                      </div>
+                    )}
+                    <div className="text-xs mt-1">
+                      Sched Out: <span className="font-semibold">{new Date(b.checkOut).toLocaleDateString()} {b.expectedCheckOutTime ? `at ${b.expectedCheckOutTime}` : ''}</span>
                     </div>
+                    {b.actualCheckOut && (
+                      <div className="text-[10px] text-purple-600 mt-0.5">
+                        Actual Out: {new Date(b.actualCheckOut).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="font-bold text-primary text-sm">
                     Rs. {b.totalAmount}
@@ -171,6 +181,21 @@ export default function BookingTable({ bookings: initialBookings }: BookingTable
                             <DropdownMenuItem onClick={() => handlePrint(b.id)} className="gap-2">
                               <Printer className="h-4 w-4" />
                               View Invoice
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={async () => {
+                              if (confirm("Are you sure you want to delete this booking?")) {
+                                const { deleteBooking } = await import("@/actions/bookings");
+                                const res = await deleteBooking(b.id);
+                                if (res.success) {
+                                  toast.success(res.message);
+                                  setBookings(prev => prev.filter(item => item.id !== b.id));
+                                  router.refresh();
+                                } else {
+                                  toast.error(res.message);
+                                }
+                              }
+                            }} className="gap-2 text-destructive font-bold">
+                              Delete Booking
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>

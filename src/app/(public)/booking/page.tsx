@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { getRooms } from "@/actions/rooms";
 import BookingForm from "@/components/public/booking-form";
 import { CalendarRange } from "lucide-react";
@@ -24,7 +25,9 @@ export default async function BookingPage() {
       </div>
 
       {/* Interactive Form */}
-      <BookingForm rooms={rooms} />
+      <Suspense fallback={<div className="flex justify-center p-12 text-primary animate-pulse">Loading booking form...</div>}>
+        <BookingForm rooms={rooms} />
+      </Suspense>
     </div>
   );
 }

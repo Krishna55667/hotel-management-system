@@ -11,6 +11,9 @@ export async function createBooking(formData: FormData): Promise<ActionResult> {
     roomId: formData.get("roomId") as string,
     checkIn: formData.get("checkIn") as string,
     checkOut: formData.get("checkOut") as string,
+    expectedCheckInTime: formData.get("expectedCheckInTime") as string,
+    expectedCheckOutTime: formData.get("expectedCheckOutTime") as string,
+    bookingType: formData.get("bookingType") as string,
     guests: formData.get("guests") as string,
     specialRequests: formData.get("specialRequests") as string,
     name: formData.get("name") as string,
@@ -49,11 +52,23 @@ export async function createBooking(formData: FormData): Promise<ActionResult> {
       return { success: false, message: "Room not found" };
     }
 
-    // Calculate total
-    const nights = Math.ceil(
-      (validated.data.checkOut.getTime() - validated.data.checkIn.getTime()) / (1000 * 60 * 60 * 24)
-    );
-    const totalAmount = nights * room.pricePerNight;
+    // Calculate total based on booking type
+    let totalAmount = 0;
+    const bType = validated.data.bookingType;
+    
+    if (bType === "DAY" && room.dayPrice) {
+      totalAmount = room.dayPrice;
+    } else if (bType === "NIGHT" && room.nightPrice) {
+      totalAmount = room.nightPrice;
+    } else if (bType === "WHOLE_DAY" && room.wholeDayPrice) {
+      totalAmount = room.wholeDayPrice;
+    } else {
+      // Fallback to old logic
+      const nights = Math.max(1, Math.ceil(
+        (validated.data.checkOut.getTime() - validated.data.checkIn.getTime()) / (1000 * 60 * 60 * 24)
+      ));
+      totalAmount = nights * room.pricePerNight;
+    }
 
     // Get or create user
     const session = await auth();
@@ -87,6 +102,9 @@ export async function createBooking(formData: FormData): Promise<ActionResult> {
         roomId: validated.data.roomId,
         checkIn: validated.data.checkIn,
         checkOut: validated.data.checkOut,
+        expectedCheckInTime: validated.data.expectedCheckInTime || null,
+        expectedCheckOutTime: validated.data.expectedCheckOutTime || null,
+        bookingType: validated.data.bookingType || null,
         guests: validated.data.guests,
         specialRequests: validated.data.specialRequests || null,
         totalAmount,
@@ -108,9 +126,19 @@ export async function updateBookingStatus(bookingId: string, status: string): Pr
   }
 
   try {
+    const updateData: any = { 
+      status: status as "PENDING" | "CONFIRMED" | "CHECKED_IN" | "CHECKED_OUT" | "COMPLETED" | "CANCELLED" 
+    };
+
+    if (status === "CHECKED_IN") {
+      updateData.actualCheckIn = new Date();
+    } else if (status === "CHECKED_OUT" || status === "COMPLETED") {
+      updateData.actualCheckOut = new Date();
+    }
+
     const booking = await db.booking.update({
       where: { id: bookingId },
-      data: { status: status as "PENDING" | "CONFIRMED" | "CHECKED_IN" | "CHECKED_OUT" | "COMPLETED" | "CANCELLED" },
+      data: updateData,
     });
 
     // Update room status based on booking status
@@ -164,4 +192,34 @@ export async function getUserBookings(userId: string) {
     },
     orderBy: { createdAt: "desc" },
   });
+}
+
+export async function deleteBooking(bookingId: string): Promise<ActionResult> {
+  const session = await auth();
+  if (!session || !["MANAGER", "ADMIN"].includes(session.user.role)) {
+    return { success: false, message: "Unauthorized" };
+  }
+
+  try {
+    const booking = await db.booking.findUnique({ where: { id: bookingId } });
+    if (!booking) return { success: false, message: "Booking not found" };
+
+    await db.$transaction([
+      db.receipt.deleteMany({ where: { bookingId } }),
+      db.payment.deleteMany({ where: { bookingId } }),
+      db.booking.delete({ where: { id: bookingId } })
+    ]);
+
+    if (booking.roomId) {
+      await db.room.update({
+        where: { id: booking.roomId },
+        data: { status: "AVAILABLE" }
+      });
+    }
+
+    return { success: true, message: "Booking deleted permanently" };
+  } catch (error) {
+    console.error("Delete booking error:", error);
+    return { success: false, message: "Failed to delete booking" };
+  }
 }

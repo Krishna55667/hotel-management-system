@@ -33,6 +33,8 @@ export default function BookingForm({ rooms }: BookingFormProps) {
   const [roomId, setRoomId] = useState(initialRoomId);
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
+  const [checkInTime, setCheckInTime] = useState("14:00");
+  const [checkOutTime, setCheckOutTime] = useState("12:00");
   const [guests, setGuests] = useState(1);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -50,6 +52,7 @@ export default function BookingForm({ rooms }: BookingFormProps) {
   const selectedRoom = rooms.find(r => r.id === roomId);
 
   // Cost calculation
+  const [bookingType, setBookingType] = useState("WHOLE_DAY");
   const [nights, setNights] = useState(0);
   const [totalCost, setTotalCost] = useState(0);
 
@@ -57,15 +60,28 @@ export default function BookingForm({ rooms }: BookingFormProps) {
     if (checkIn && checkOut && selectedRoom) {
       const start = new Date(checkIn);
       const end = new Date(checkOut);
-      const diffTime = Math.abs(end.getTime() - start.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      setNights(diffDays || 0);
-      setTotalCost((diffDays || 0) * selectedRoom.pricePerNight);
+      let diffDays = Math.ceil(Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // Minimum 1 day calculation
+      if (diffDays === 0) diffDays = 1;
+      setNights(diffDays);
+
+      let cost = 0;
+      if (bookingType === "DAY" && selectedRoom.dayPrice) {
+        cost = diffDays * selectedRoom.dayPrice;
+      } else if (bookingType === "NIGHT" && selectedRoom.nightPrice) {
+        cost = diffDays * selectedRoom.nightPrice;
+      } else if (bookingType === "WHOLE_DAY" && selectedRoom.wholeDayPrice) {
+        cost = diffDays * selectedRoom.wholeDayPrice;
+      } else {
+        cost = diffDays * selectedRoom.pricePerNight;
+      }
+      setTotalCost(cost);
     } else {
       setNights(0);
       setTotalCost(0);
     }
-  }, [checkIn, checkOut, selectedRoom]);
+  }, [checkIn, checkOut, selectedRoom, bookingType]);
 
   // Handle file upload -> Base64 for local database storage simplicity
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -97,8 +113,8 @@ export default function BookingForm({ rooms }: BookingFormProps) {
       toast.error("Please select both check-in and check-out dates");
       return;
     }
-    if (new Date(checkIn) >= new Date(checkOut)) {
-      toast.error("Check-out date must be after check-in date");
+    if (new Date(checkIn) > new Date(checkOut)) {
+      toast.error("Check-out date cannot be before check-in date");
       return;
     }
     setStep(2);
@@ -116,6 +132,9 @@ export default function BookingForm({ rooms }: BookingFormProps) {
     formData.append("roomId", roomId);
     formData.append("checkIn", checkIn);
     formData.append("checkOut", checkOut);
+    formData.append("expectedCheckInTime", checkInTime);
+    formData.append("expectedCheckOutTime", checkOutTime);
+    formData.append("bookingType", bookingType);
     formData.append("guests", guests.toString());
     formData.append("specialRequests", specialRequests);
     formData.append("name", name);
@@ -224,27 +243,74 @@ export default function BookingForm({ rooms }: BookingFormProps) {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="checkIn">Check-In Date</Label>
-                  <Input
-                    id="checkIn"
-                    type="date"
-                    min={new Date().toISOString().split("T")[0]}
-                    value={checkIn}
-                    onChange={(e) => setCheckIn(e.target.value)}
-                    required
-                  />
+                  <div className="space-y-3 pb-4 border-b col-span-1 sm:col-span-2">
+                    <Label className="text-primary font-semibold">Booking Type</Label>
+                    <RadioGroup 
+                      value={bookingType} 
+                      onValueChange={setBookingType}
+                      className="flex flex-col sm:flex-row gap-4"
+                    >
+                      <div className="flex items-center space-x-2 bg-muted/30 p-2 rounded-lg border flex-1 hover:bg-muted/50 transition-colors">
+                        <RadioGroupItem value="DAY" id="type-day" />
+                        <Label htmlFor="type-day" className="cursor-pointer font-medium w-full">Day Only</Label>
+                      </div>
+                      <div className="flex items-center space-x-2 bg-muted/30 p-2 rounded-lg border flex-1 hover:bg-muted/50 transition-colors">
+                        <RadioGroupItem value="NIGHT" id="type-night" />
+                        <Label htmlFor="type-night" className="cursor-pointer font-medium w-full">Night Only</Label>
+                      </div>
+                      <div className="flex items-center space-x-2 bg-muted/30 p-2 rounded-lg border flex-1 hover:bg-muted/50 transition-colors">
+                        <RadioGroupItem value="WHOLE_DAY" id="type-whole" />
+                        <Label htmlFor="type-whole" className="cursor-pointer font-medium w-full">Whole Day (24hr)</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+
+                <div className="grid grid-cols-2 gap-2 mt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="checkIn">Check-In Date</Label>
+                    <Input
+                      id="checkIn"
+                      type="date"
+                      min={new Date().toISOString().split("T")[0]}
+                      value={checkIn}
+                      onChange={(e) => setCheckIn(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="checkInTime">Time</Label>
+                    <Input
+                      id="checkInTime"
+                      type="time"
+                      value={checkInTime}
+                      onChange={(e) => setCheckInTime(e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="checkOut">Check-Out Date</Label>
-                  <Input
-                    id="checkOut"
-                    type="date"
-                    min={checkIn || new Date().toISOString().split("T")[0]}
-                    value={checkOut}
-                    onChange={(e) => setCheckOut(e.target.value)}
-                    required
-                  />
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="checkOut">Check-Out Date</Label>
+                    <Input
+                      id="checkOut"
+                      type="date"
+                      min={checkIn || new Date().toISOString().split("T")[0]}
+                      value={checkOut}
+                      onChange={(e) => setCheckOut(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="checkOutTime">Time</Label>
+                    <Input
+                      id="checkOutTime"
+                      type="time"
+                      value={checkOutTime}
+                      onChange={(e) => setCheckOutTime(e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -382,18 +448,17 @@ export default function BookingForm({ rooms }: BookingFormProps) {
             >
               <div className="text-left space-y-4">
                 <h3 className="font-heading font-bold text-lg text-primary">Submit Payment</h3>
-                <p className="text-sm text-muted-foreground">
-                  To complete your booking, please scan the QR code and pay the exact amount of <strong>Rs. {bookingResult?.totalAmount}</strong>, then upload the screenshot.
-                </p>
+                
+                {/* Step B: User Notice as requested */}
+                <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-xl text-sm font-medium shadow-sm">
+                  Please scan the QR code to pay the exact amount of <strong>Rs. {bookingResult?.totalAmount}</strong>. 
+                  Download your payment receipt or take a screenshot of your successful transaction to upload below.
+                </div>
 
                 <div className="flex flex-col sm:flex-row items-center gap-6 p-4 bg-muted/40 rounded-xl border">
-                  {/* Static Bank QR */}
-                  <div className="bg-white p-3 rounded-lg border shadow-sm">
-                    {/* Simulated elegant QR code visual */}
-                    <div className="w-36 h-36 bg-neutral-100 flex flex-col items-center justify-center border-2 border-dashed border-primary/30 relative">
-                      <QrCode className="h-16 w-16 text-primary" />
-                      <span className="text-[10px] font-bold text-primary/80 mt-2">FONEPAY QR</span>
-                    </div>
+                  {/* Step A: Display QR from /qr.png */}
+                  <div className="bg-white p-2 rounded-lg border shadow-sm">
+                    <img src="/qr.png" alt="Payment QR" className="w-36 h-36 object-contain" />
                   </div>
                   <div className="space-y-2 text-sm">
                     <p className="font-semibold text-foreground">Sauraha Fish Village & Agro Pvt. Ltd</p>
@@ -410,13 +475,13 @@ export default function BookingForm({ rooms }: BookingFormProps) {
                       id="transactionId"
                       value={transactionId}
                       onChange={(e) => setTransactionId(e.target.value)}
-                      placeholder="Enter 12-digit transaction ID"
+                      placeholder="Enter transaction ID"
                       required
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="screenshot">Upload Payment Receipt Screenshot *</Label>
+                    <Label htmlFor="screenshot">Upload Payment Screenshot *</Label>
                     <Input
                       id="screenshot"
                       type="file"
@@ -429,17 +494,20 @@ export default function BookingForm({ rooms }: BookingFormProps) {
                 </div>
               </div>
 
-              <div className="flex gap-4 pt-4">
-                <Button type="button" variant="outline" onClick={() => setStep(2)} className="w-1/2">
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button type="button" variant="outline" onClick={() => setStep(2)} className="sm:w-1/4">
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Back
                 </Button>
-                <Button type="submit" disabled={loading || uploading} className="w-1/2 bg-primary hover:bg-primary/95 text-white gap-2">
+                <Button type="button" variant="secondary" onClick={() => { setStep(4); toast.success("Booking confirmed! You can pay later from your dashboard."); }} className="sm:w-1/3">
+                  Book & Pay Later
+                </Button>
+                <Button type="submit" disabled={loading || uploading} className="sm:flex-1 bg-primary hover:bg-primary/95 text-white gap-2">
                   {loading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <>
-                      Confirm Booking
+                      Confirm Payment
                       <CheckCircle className="h-4 w-4" />
                     </>
                   )}

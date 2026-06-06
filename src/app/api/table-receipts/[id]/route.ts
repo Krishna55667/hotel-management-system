@@ -10,35 +10,36 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const resolvedParams = await params;
-  const bookingId = resolvedParams.id;
+  const orderId = resolvedParams.id;
 
   try {
-    const booking = await db.booking.findUnique({
-      where: { id: bookingId },
+    const order = await db.restaurantOrder.findUnique({
+      where: { id: orderId },
       include: {
-        room: true,
-        user: true,
-        payment: true,
+        table: true,
+        items: {
+          include: {
+            menuItem: true,
+          }
+        }
       },
     });
 
-    if (!booking) {
-      return new Response("Receipt Not Found", { status: 404 });
+    if (!order) {
+      return new Response("Order Not Found", { status: 404 });
     }
-
-    const verifiedPayment = booking.payment?.status === "VERIFIED" ? booking.payment : null;
 
     const htmlContent = `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Receipt_${booking.bookingNumber}</title>
+        <title>Table_Receipt_${order.id}</title>
         <style>
           body {
             font-family: 'Courier New', Courier, monospace;
             padding: 40px;
             color: #333;
-            max-width: 800px;
+            max-width: 500px;
             margin: auto;
             border: 1px solid #eee;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
@@ -50,7 +51,7 @@ export async function GET(
             margin-bottom: 20px;
           }
           .title {
-            font-size: 24px;
+            font-size: 20px;
             font-weight: bold;
             margin: 0;
             color: #0F4C3A;
@@ -59,15 +60,19 @@ export async function GET(
             font-size: 12px;
             margin: 5px 0 0 0;
           }
+          .details {
+            font-size: 13px;
+            margin-bottom: 15px;
+          }
           .details-table {
             width: 100%;
             border-collapse: collapse;
             margin: 20px 0;
+            font-size: 13px;
           }
           .details-table th, .details-table td {
             text-align: left;
-            padding: 8px;
-            font-size: 13px;
+            padding: 5px 0;
           }
           .details-table th {
             border-bottom: 1px solid #000;
@@ -113,78 +118,56 @@ export async function GET(
       </head>
       <body>
         <div class="header">
-          <img src="/logo.png" alt="Logo" style="height: 80px; object-fit: contain; margin-bottom: 10px;" />
+          <img src="/logo.png" alt="Logo" style="height: 60px; object-fit: contain; margin-bottom: 10px;" />
           <h1 class="title">${APP_NAME}</h1>
           <p class="subtitle">${CONTACT.address}</p>
           <p class="subtitle">Phone: ${CONTACT.phone} | Email: ${CONTACT.email}</p>
         </div>
 
-        <button class="print-btn" onclick="window.print()">Print Receipt / PDF</button>
+        <button class="print-btn" onclick="window.print()">Print Bill</button>
 
-        <h3 style="text-align: center; margin-top: 20px;">DIGITAL BOOKING RECEIPT</h3>
+        <h3 style="text-align: center; margin-top: 20px;">TABLE BILL</h3>
 
-        <table class="details-table">
-          <tr>
-            <th>Booking Reference:</th>
-            <td>${booking.bookingNumber}</td>
-            <th>Date Issued:</th>
-            <td>${new Date().toLocaleDateString()}</td>
-          </tr>
-          <tr>
-            <th>Customer Name:</th>
-            <td>${booking.user.name}</td>
-            <th>Phone:</th>
-            <td>${booking.user.phone || "N/A"}</td>
-          </tr>
-          <tr>
-            <th>Email:</th>
-            <td>${booking.user.email}</td>
-            <th>Address:</th>
-            <td>${booking.user.address || "N/A"}</td>
-          </tr>
-        </table>
-
-        <hr style="border: 0; border-top: 1px solid #000;" />
+        <div class="details">
+          <strong>Order ID:</strong> ${order.id.slice(-8).toUpperCase()}<br/>
+          <strong>Table:</strong> ${order.table.name}<br/>
+          ${order.customerName ? `<strong>Customer:</strong> ${order.customerName}<br/>` : ""}
+          <strong>Date:</strong> ${new Date(order.createdAt).toLocaleString()}
+        </div>
 
         <table class="details-table">
           <thead>
             <tr>
-              <th>Description</th>
-              <th>Qty / Duration</th>
-              <th>Unit Price</th>
-              <th style="text-align: right;">Total</th>
+              <th>Item</th>
+              <th style="text-align: center;">Qty</th>
+              <th style="text-align: right;">Amount</th>
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td>Room ${booking.room.number} - ${booking.room.name} (${booking.room.type})<br/>
-                  <small>
-                    Sched: ${new Date(booking.checkIn).toLocaleDateString()} to ${new Date(booking.checkOut).toLocaleDateString()}<br/>
-                    ${booking.actualCheckIn ? `<strong>Actual In:</strong> ${new Date(booking.actualCheckIn).toLocaleString()}` : ''} 
-                    ${booking.actualCheckOut ? `<br/><strong>Actual Out:</strong> ${new Date(booking.actualCheckOut).toLocaleString()}` : ''}
-                  </small>
-              </td>
-              <td>
-                ${Math.ceil(Math.abs(new Date(booking.checkOut).getTime() - new Date(booking.checkIn).getTime()) / (1000 * 60 * 60 * 24))} Night(s)
-              </td>
-              <td>Rs. ${booking.room.pricePerNight}</td>
-              <td style="text-align: right;">Rs. ${booking.totalAmount}</td>
-            </tr>
+            ${order.items.map(item => `
+              <tr>
+                <td>${item.menuItem.name}</td>
+                <td style="text-align: center;">${item.quantity}</td>
+                <td style="text-align: right;">Rs. ${item.priceAtOrder * item.quantity}</td>
+              </tr>
+            `).join('')}
           </tbody>
         </table>
 
         <div class="total-section">
-          <p>Total Paid: Rs. ${booking.totalAmount}</p>
-          <p style="font-size: 11px; font-weight: normal; margin-top: 5px;">
-            Payment Method: ${verifiedPayment ? verifiedPayment.method.replace("_", " ") : "CASH"}<br/>
-            Transaction Ref ID: ${verifiedPayment ? verifiedPayment.transactionId : "Verified Offline"}
-          </p>
+          <p>Total Amount: Rs. ${order.totalAmount}</p>
         </div>
 
         <div class="footer">
-          <p>Thank you for choosing Sauraha Fish Village & Agro Pvt. Ltd!</p>
-          <p>Clean Environment • Peaceful Atmosphere • Nature Retreat</p>
+          <p>Thank you for dining with us!</p>
+          <p>Sauraha Fish Village & Agro Pvt. Ltd</p>
         </div>
+
+        <script>
+          window.onload = function() {
+            window.print();
+          };
+        </script>
       </body>
       </html>
     `;

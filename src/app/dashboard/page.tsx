@@ -1,5 +1,6 @@
 import { getDashboardStats, getRevenueData, getBookingTrends, getOccupancyData } from "@/actions/reports";
 import DashboardCharts from "@/components/dashboard/dashboard-charts";
+import ResetRevenueButton from "@/components/dashboard/reset-revenue-button";
 import { 
   BedDouble, Sparkles, CheckSquare, LogIn, 
   LogOut, Wallet, Calendar, AlertCircle 
@@ -59,14 +60,17 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/50 rounded-2xl shadow-sm bg-card">
+        <Card className="border-border/50 rounded-2xl shadow-sm bg-card relative">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">Monthly Revenue</CardTitle>
+            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-2">
+              Monthly Revenue
+              <ResetRevenueButton />
+            </CardTitle>
             <Wallet className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">Rs. {stats.monthlyRevenue}</div>
-            <p className="text-[10px] text-muted-foreground mt-1">This calendar month</p>
+            <p className="text-[10px] text-muted-foreground mt-1">From start of tracking</p>
           </CardContent>
         </Card>
 

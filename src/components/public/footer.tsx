@@ -10,8 +10,8 @@ export default function Footer() {
           {/* Logo and About */}
           <div className="space-y-4 md:col-span-1">
             <Link href="/" className="flex items-center gap-2">
-              <div className="bg-secondary p-1.5 rounded-lg text-secondary-foreground">
-                <Leaf className="h-5 w-5" />
+              <div className="bg-white p-1 rounded-lg">
+                <img src="/logo.png" alt="Sauraha Fish Village Logo" className="h-8 w-8 object-contain" />
               </div>
               <span className="font-heading font-bold text-xl tracking-tight text-white">
                 {APP_SHORT_NAME}

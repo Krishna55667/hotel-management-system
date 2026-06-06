@@ -58,13 +58,6 @@ enum PaymentMethod {
   CASH
 }
 
-enum StaffPosition {
-  RECEPTIONIST
-  HOUSEKEEPING
-  KITCHEN_STAFF
-  MANAGER
-  SECURITY
-}
 
 enum StaffStatus {
   ACTIVE
@@ -93,6 +86,20 @@ enum NotificationType {
   GENERAL
 }
 
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+}
+
+enum OrderStatus {
+  PENDING
+  IN_PROGRESS
+  SERVED
+  COMPLETED
+  CANCELLED
+}
+
 // ==================== MODELS ====================
 
 model User {
@@ -119,6 +126,7 @@ model User {
   auditLogs     AuditLog[]
   accounts      Account[]
   sessions      Session[]
+  settings      Setting[]
 
   @@index([email])
   @@index([role])
@@ -166,6 +174,9 @@ model Room {
   type        RoomType   @default(STANDARD)
   capacity    Int        @default(2)
   pricePerNight Float
+  dayPrice    Float?
+  nightPrice  Float?
+  wholeDayPrice Float?
   status      RoomStatus @default(AVAILABLE)
   description String?    @db.Text
   amenities   Json
@@ -189,9 +200,14 @@ model Booking {
   roomId         String
   checkIn        DateTime
   checkOut       DateTime
+  actualCheckIn  DateTime?
+  actualCheckOut DateTime?
+  expectedCheckInTime  String?
+  expectedCheckOutTime String?
   guests         Int           @default(1)
   specialRequests String?      @db.Text
   totalAmount    Float
+  bookingType    String?
   status         BookingStatus @default(PENDING)
   
   createdAt DateTime @default(now())
@@ -282,6 +298,7 @@ model MenuItem {
 
   // Relations
   category MenuCategory @relation(fields: [categoryId], references: [id])
+  restaurantOrderItems RestaurantOrderItem[]
 
   @@index([categoryId])
   @@index([available])
@@ -290,7 +307,7 @@ model MenuItem {
 model Staff {
   id        String        @id @default(cuid())
   userId    String        @unique
-  position  StaffPosition
+  position  String
   salary    Float?
   shift     ShiftType     @default(MORNING)
   status    StaffStatus   @default(ACTIVE)
@@ -382,4 +399,65 @@ model AuditLog {
   @@index([entity])
   @@index([userId])
   @@index([createdAt])
+}
+
+model Setting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String   @db.Text
+  description String?  @db.Text
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+
+  updatedBy User? @relation(fields: [updatedById], references: [id])
+}
+
+model RestaurantTable {
+  id       String      @id @default(cuid())
+  name     String      @unique // e.g., "Table 1", "Poolside 1"
+  capacity Int         @default(4)
+  status   TableStatus @default(AVAILABLE)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders RestaurantOrder[]
+}
+
+model RestaurantOrder {
+  id          String      @id @default(cuid())
+  tableId     String
+  customerName String?
+  status      OrderStatus @default(PENDING)
+  totalAmount Float       @default(0)
+  notes       String?     @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  table RestaurantTable       @relation(fields: [tableId], references: [id])
+  items RestaurantOrderItem[]
+
+  @@index([tableId])
+  @@index([status])
+}
+
+model RestaurantOrderItem {
+  id           String @id @default(cuid())
+  orderId      String
+  menuItemId   String
+  quantity     Int    @default(1)
+  priceAtOrder Float  // To support dynamic overriding
+  notes        String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  order    RestaurantOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem MenuItem        @relation(fields: [menuItemId], references: [id])
+
+  @@index([orderId])
+  @@index([menuItemId])
 }

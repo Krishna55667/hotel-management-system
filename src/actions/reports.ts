@@ -12,6 +12,10 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
+  const resetSetting = await db.setting.findUnique({ where: { key: "REVENUE_RESET_DATE" } });
+  const resetDate = resetSetting ? new Date(resetSetting.value) : new Date(0);
+  const actualStartDate = resetDate > firstDayOfMonth ? resetDate : firstDayOfMonth;
+
   const [
     totalRooms,
     availableRooms,
@@ -34,7 +38,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     db.payment.aggregate({
       where: {
         status: "VERIFIED",
-        createdAt: { gte: firstDayOfMonth, lte: lastDayOfMonth },
+        createdAt: { gte: actualStartDate, lte: lastDayOfMonth },
       },
       _sum: { amount: true },
     }),
@@ -55,6 +59,9 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 }
 
 export async function getRevenueData() {
+  const resetSetting = await db.setting.findUnique({ where: { key: "REVENUE_RESET_DATE" } });
+  const resetDate = resetSetting ? new Date(resetSetting.value) : new Date(0);
+
   const months = [];
   for (let i = 5; i >= 0; i--) {
     const date = new Date();
@@ -62,20 +69,48 @@ export async function getRevenueData() {
     const start = new Date(date.getFullYear(), date.getMonth(), 1);
     const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
-    const result = await db.payment.aggregate({
-      where: {
-        status: "VERIFIED",
-        createdAt: { gte: start, lte: end },
-      },
-      _sum: { amount: true },
-    });
+    const actualStart = resetDate > start ? resetDate : start;
+
+    let revenue = 0;
+    if (actualStart <= end) {
+      const result = await db.payment.aggregate({
+        where: {
+          status: "VERIFIED",
+          createdAt: { gte: actualStart, lte: end },
+        },
+        _sum: { amount: true },
+      });
+      revenue = result._sum.amount || 0;
+    }
 
     months.push({
       month: start.toLocaleString("default", { month: "short" }),
-      revenue: result._sum.amount || 0,
+      revenue,
     });
   }
   return months;
+}
+
+export async function resetMonthlyRevenue() {
+  const { auth } = await import("@/lib/auth");
+  const session = await auth();
+  
+  if (!session || !["MANAGER", "ADMIN"].includes(session.user.role)) {
+    return { success: false, message: "Unauthorized" };
+  }
+
+  try {
+    const now = new Date().toISOString();
+    await db.setting.upsert({
+      where: { key: "REVENUE_RESET_DATE" },
+      update: { value: now, updatedById: session.user.id },
+      create: { key: "REVENUE_RESET_DATE", value: now, updatedById: session.user.id, description: "Tracks the date from which dashboard revenue should be computed" },
+    });
+    return { success: true, message: "Monthly revenue stats have been reset." };
+  } catch (error) {
+    console.error("Failed to reset revenue stats", error);
+    return { success: false, message: "Failed to reset revenue stats." };
+  }
 }
 
 export async function getBookingTrends() {

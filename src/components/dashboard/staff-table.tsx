@@ -37,7 +37,7 @@ export default function StaffTable({ staffList: initialStaff }: StaffTableProps)
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [position, setPosition] = useState("RECEPTIONIST");
+  const [position, setPosition] = useState("Receptionist");
   const [salary, setSalary] = useState("");
   const [shift, setShift] = useState("MORNING");
 
@@ -165,19 +165,22 @@ export default function StaffTable({ staffList: initialStaff }: StaffTableProps)
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-1 space-y-1.5">
                   <Label htmlFor="staffPos">Position *</Label>
-                  <select
+                  <Input
                     id="staffPos"
                     value={position}
                     onChange={(e) => setPosition(e.target.value)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs focus-visible:outline-none"
+                    list="position-options"
+                    placeholder="e.g. Receptionist"
+                    className="text-xs"
                     required
-                  >
-                    <option value="RECEPTIONIST">Receptionist</option>
-                    <option value="HOUSEKEEPING">Housekeeping</option>
-                    <option value="KITCHEN_STAFF">Kitchen Staff</option>
-                    <option value="MANAGER">Manager</option>
-                    <option value="SECURITY">Security</option>
-                  </select>
+                  />
+                  <datalist id="position-options">
+                    <option value="Receptionist" />
+                    <option value="Housekeeping" />
+                    <option value="Kitchen Staff" />
+                    <option value="Manager" />
+                    <option value="Security" />
+                  </datalist>
                 </div>
                 <div className="col-span-1 space-y-1.5">
                   <Label htmlFor="staffSalary">Salary (Rs.)</Label>
@@ -268,8 +271,21 @@ export default function StaffTable({ staffList: initialStaff }: StaffTableProps)
                         <DropdownMenuItem onClick={() => handleStatusChange(staff.id, "ON_LEAVE")} className="gap-2">
                           On Leave
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleStatusChange(staff.id, "INACTIVE")} className="gap-2 text-destructive">
+                        <DropdownMenuItem onClick={() => handleStatusChange(staff.id, "INACTIVE")} className="gap-2 text-orange-600">
                           Mark Inactive
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={async () => {
+                          if (confirm("Are you sure you want to permanently delete this staff member?")) {
+                            const { deleteStaff } = await import("@/actions/staff");
+                            const res = await deleteStaff(staff.id);
+                            if (res.success) {
+                              toast.success(res.message);
+                              setStaffList(prev => prev.filter(s => s.id !== staff.id));
+                              router.refresh();
+                            } else toast.error(res.message);
+                          }
+                        }} className="gap-2 text-destructive font-bold">
+                          Delete Staff
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

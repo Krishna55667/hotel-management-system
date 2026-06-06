@@ -45,10 +45,8 @@ export default function Navbar({ session }: NavbarProps) {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="bg-primary p-1.5 rounded-lg text-primary-foreground group-hover:rotate-12 transition-transform duration-300">
-              <Leaf className="h-5 w-5" />
-            </div>
-            <span className="font-heading font-bold text-xl sm:text-2xl text-primary tracking-tight">
+            <img src="/logo.png" alt="Sauraha Fish Village Logo" className="h-10 w-10 object-contain group-hover:scale-105 transition-transform duration-300" />
+            <span className="font-heading font-bold text-xl sm:text-2xl text-primary tracking-tight hidden sm:block">
               {APP_SHORT_NAME}
             </span>
           </Link>
