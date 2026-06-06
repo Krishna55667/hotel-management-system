@@ -21,13 +21,20 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
-    const result = await loginAction(formData);
-    
-    // If it reaches here, it means loginAction returned an error object instead of throwing a redirect
-    setLoading(false);
-    if (result) {
-      setError(result.message || "Invalid email or password");
-      toast.error(result.message || "Failed to log in");
+    try {
+      const result = await loginAction(formData);
+      setLoading(false);
+
+      if (result && result.success) {
+        toast.success("Logged in successfully!");
+        window.location.href = "/dashboard";
+      } else if (result) {
+        setError(result.message || "Invalid email or password");
+        toast.error(result.message || "Failed to log in");
+      }
+    } catch (e) {
+      setLoading(false);
+      setError("Network error. Please try again.");
     }
   };
 
