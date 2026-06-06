@@ -21,10 +21,13 @@ export async function loginAction(formData: FormData): Promise<ActionResult> {
     await signIn("credentials", {
       email: validated.data.email,
       password: validated.data.password,
-      redirect: false,
+      redirectTo: "/dashboard", // Force standard redirect
     });
     return { success: true, message: "Logged in successfully" };
-  } catch {
+  } catch (error: any) {
+    if (error.name === "RedirectError" || error.message.includes("NEXT_REDIRECT")) {
+      throw error; // Next.js requires this to actually redirect and set cookies
+    }
     return { success: false, message: "Invalid email or password" };
   }
 }

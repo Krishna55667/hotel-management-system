@@ -21,19 +21,21 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
-    const formData = new FormData(e.currentTarget);
-    const result = await loginAction(formData);
+    try {
+      const result = await loginAction(formData);
+      setLoading(false);
 
-    setLoading(false);
-
-    if (result.success) {
-      toast.success("Logged in successfully!");
-      // Force page refresh to trigger session load & middleware redirect
-      router.refresh();
-      router.push("/");
-    } else {
-      setError(result.message || "Invalid email or password");
-      toast.error(result.message || "Failed to log in");
+      if (result && result.success) {
+        toast.success("Logged in successfully!");
+        router.refresh();
+        router.push("/dashboard");
+      } else if (result) {
+        setError(result.message || "Invalid email or password");
+        toast.error(result.message || "Failed to log in");
+      }
+    } catch (e) {
+      // Server action triggered a Next.js redirect
+      setLoading(false);
     }
   };
 
