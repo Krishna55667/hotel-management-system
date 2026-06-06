@@ -24,8 +24,8 @@ export async function loginAction(formData: FormData): Promise<ActionResult> {
       redirect: false,
     });
     return { success: true, message: "Logged in successfully" };
-  } catch (error) {
-    return { success: false, message: "Invalid email or password" };
+  } catch (error: any) {
+    return { success: false, message: `DEBUG: ${error?.message || "Unknown error"} | Type: ${error?.name}` };
   }
 }
 
